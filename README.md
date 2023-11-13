@@ -4,10 +4,6 @@ Predict the possibility of tracheostomy or mortality in individuals with severe 
 
 Caiwei Xiong
 
-## Desciption
-
-
-
 
 
 ## Methods
