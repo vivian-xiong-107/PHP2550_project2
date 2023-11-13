@@ -9,7 +9,7 @@ PHP2550_project2   Caiwei Xiong
 
 ## Methods
 
-To predict the severe result based on patient characteristics, several regression models were used: lasso regression model with interaction terms, ridge regression model, logistic regression model without regularization, Forward Stepwise selection model, and lasso regression model with regularization. 
+To predict the severe result based on patient characteristics, several regression models were used: ridge regression model, logistic regression model without regularization, Forward Stepwise selection model, and lasso regression model. 
 
 ## Packages
 
