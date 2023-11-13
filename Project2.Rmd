@@ -1,0 +1,1014 @@
+---
+title: "Predict the result of tracheostomy or mortality in individuals with severe bronchopulmonary dysplasia, utilizing multiple characteristics and medical measurements at 36 weeks postpartum"
+author: "Caiwei Xiong"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+editor_options:
+  markdown:
+    wrap: 72
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+```{r, echo=FALSE, message=FALSE}
+library("MASS")
+library("glmnet")
+library("leaps")
+library("kableExtra")
+library("knitr")
+library("dplyr")
+library("gtsummary")
+library("caret")
+library("leaps")
+library("DescTools")
+library("bestglm")
+library("L0Learn")
+library("DescTools")
+library("mice")
+library("gt")
+library("pROC")
+```
+
+## Abstract
+
+Tracheostomy insertion may provide potential benefits for patients
+presenting with severe cases of bronchopulmonary dysplasia (BPD).
+Nevertheless, the implantation of a tracheostomy may potentially elevate
+the likelihood of mortality, inadvertent removal of the cannula,
+obstruction of the cannula, heightened rates of infection, and the
+development of tracheal stenosis. [@mehta1999] In this particular
+scenario, our objective is to develop a predictive model that can
+forecast the likelihood of tracheostomy or mortality in persons
+diagnosed with severe bronchopulmonary dysplasia. This report will
+employ the lasso model, ridge model, logistic regression without
+regularization, and forward stepwise selection model to forecast the
+outcome. Our findings indicate that the lasso model and ridge model
+exhibited superior performance.
+
+\newpage
+
+## Introduction
+
+Patients with severe instances of bronchopulmonary dysplasia (BPD) could
+benefit from tracheostomy placement. An estimated 13,000 people a year
+are thought to develop severe BPD, of which $5\%$ require tracheostomy.
+When it is predicted that high-level respiratory assistance will be
+required for an extended length of time owing to respiratory
+insufficiency, upper or lower airway abnormalities, or a combination of
+these, tracheostomy is taken into consideration for newborns with BPD.
+It is unclear how tracheostomy implantation may affect respiratory and
+neurodevelopmental results in the long run. [@annesi2021]
+
+In the collaboration with Dr. Chris Schmid of the Biostatistics
+Department, this project embarks on a exploration of the decision-making
+process surrounding tracheostomy placement in neonates suffering from
+severe bronchopulmonary dysplasia (sBPD). Despite the existence of prior
+research, the optimal timing and specific criteria for tracheostomy in
+this vulnerable population remain enigmatic. Emerging evidence hints at
+the potential benefits of early tracheostomy for neonatal growth, yet
+the lack of detailed respiratory data in previous large database
+analyses has left a gap in personalized, age-specific prediction models.
+This report aims to bridge this knowledge gap by developing a regression
+model that not only predicts the composite outcome of tracheostomy or
+death but also sheds light on the pivotal variables influencing these
+outcomes at varying postmenstrual ages (PMA).
+
+## Motivation data
+
+The BPD Collaborative Registry, a multi-center cooperation of
+multidisciplinary BPD programs in the US and Sweden, was the source of
+study participants. The consortium was founded to fill evidence gaps and
+advance research to improve the care of children with severe forms of
+BPD. Babies with severe bronchopulmonary dysplasia (sBPD), as defined by
+the NHLBI criteria of 2001 (FiO2 3 0.3 or positive pressure ventilation,
+either invasive or non-invasive, at 36 weeks postpartum), who have a
+gestational age of fewer than 32 weeks are included in the registry.
+Standard clinical and demographic information is gathered for the
+registry at four different intervals: birth, 36 weeks postpartum, 44
+weeks postpartum, and discharge. We searched the registry for
+individuals with BPD and full growth records between January 1, 2021,
+and July 19, 2021, in order to conduct this study. Nine BPD
+Collaborative centres have provided data that met the research inclusion
+criteria at the time of analysis. [@Ofman2019c]
+
+The dataset has 996 observations and encompasses 30 variables. The
+variables encompass patient identities, demographic data, medical
+measures, and outcomes. The dataset consists of 11 categorical
+variables, 16 continuous variables, 2 ordinal variables, and 1 identity
+variable. The sample population consisted of 996 individuals originating
+from 9 distinct centres, with an unbalanced distribution of patients
+among these centres. The number of patients from centre 2 amounted to
+630, whereas centre 20 had a mere 4 patients. This phenomena may be
+attributed to the distinct properties exhibited by various centres. As a
+result of the absence of death condition records for two patients, it
+was deemed necessary to exclude the data pertaining to these individuals
+from the dataset. In the study cohort consisting of 994 patients, a
+total of 146 individuals had tracheostomy therapy, whereas 54 patients
+experienced mortality prior to hospital release. To provide a
+comprehensive analysis, we combine the findings from tracheostomy and
+mortality to form the outcome measure. In the event of either
+tracheostomy or mortality, it is asserted that an severe result is
+present.
+
+```{r, echo=FALSE}
+# load the dataset
+project_two = read.csv("/Users/xiongcaiwei/Downloads/project2.csv")
+```
+
+```{r, echo=FALSE}
+# remove duplicate row from dataset
+project_two = unique(project_two)
+```
+
+```{r,echo=FALSE}
+# according to record_id both missing value of center were from center 1
+project_two$center[is.na(project_two$center)] = 1
+```
+
+```{r,echo=FALSE}
+# remove the data point where death is missing 
+project_two = project_two %>%
+  filter(!is.na(Death))
+```
+
+```{r,echo=FALSE}
+# center 21 is a magic number
+project_two$center[which(project_two$center == 21)] = 1
+```
+
+```{r, echo=FALSE}
+# combine trachoestomy and death to one variable (i.e., outcome_result)
+project_two = project_two %>% mutate(outcome_result = 
+                         case_when(Death == "Yes" ~ 1,
+                                   Trach == 1 ~ 1, 
+                                   .default = 0)) 
+```
+
+```{r, echo=FALSE}
+# remove the mat_race variable which does not match codebook encoding
+project_two = project_two  %>%   
+  dplyr::select(-c(mat_race))
+
+# factor the categorical variable
+project_two$center = as.factor(project_two$center)
+project_two$mat_ethn = as.factor(project_two$mat_ethn)
+project_two$del_method = as.factor(project_two$del_method)
+project_two = project_two %>% mutate(prenat_ster = 
+                         case_when(prenat_ster == "Yes" ~ 1,
+                                   prenat_ster == "No" ~ 0, 
+                                   prenat_ster == "Unknown" ~ 2)) 
+project_two$prenat_ster = as.factor(project_two$prenat_ster)
+
+project_two = project_two %>% mutate(com_prenat_ster = 
+                         case_when(com_prenat_ster == "Yes" ~ 1,
+                                   com_prenat_ster == "No" ~ 0, 
+                                   com_prenat_ster == "Unknown" ~ 2)) 
+project_two$com_prenat_ster = as.factor(project_two$com_prenat_ster)
+
+project_two = project_two %>% mutate(mat_chorio = 
+                         case_when(mat_chorio == "Yes" ~ 1,
+                                   mat_chorio == "No" ~ 0, 
+                                   mat_chorio == "Unknown" ~ 2)) 
+project_two$mat_chorio = as.factor(project_two$mat_chorio)
+
+project_two = project_two %>% mutate(gender = 
+                         case_when(gender == "Male" ~ 1,
+                                   gender == "Female" ~ 0, 
+                                   gender == "Ambiguous" ~ 2)) 
+project_two$gender = as.factor(project_two$gender)
+
+project_two = project_two %>% mutate(sga = 
+                         case_when(sga == "SGA" ~ 1,
+                                   sga == "Not SGA" ~ 0)) 
+project_two$sga = as.factor(project_two$sga)
+
+project_two = project_two %>% mutate(any_surf = 
+                         case_when(any_surf == "Yes" ~ 1,
+                                   any_surf == "No" ~ 0, 
+                                   any_surf == "Unknown" ~ 2)) 
+project_two$any_surf = as.factor(project_two$any_surf)
+
+project_two$med_ph.36 = as.factor(project_two$med_ph.36)
+
+project_two$Trach = as.factor(project_two$Trach)
+
+project_two = project_two %>% mutate(Death = 
+                         case_when(Death == "Yes" ~ 1,
+                                   Death == "No" ~ 0)) 
+project_two$Death = as.factor(project_two$Death)
+
+project_two$outcome_result = as.factor(project_two$outcome_result)
+project_two$med_ph.36 = as.factor(project_two$med_ph.36)
+project_two$med_ph.44= as.factor(project_two$med_ph.44)
+```
+
+```{r,echo=FALSE}
+project_two$com_prenat_ster[which(project_two$prenat_ster == 0)] = 0
+```
+
+```{r,echo=FALSE}
+# convert the ventilation supper level in 36 and 44 weeks to ordinal variables
+project_two$ventilation_support_level.36 = 
+  ordered(project_two$ventilation_support_level.36, levels = 0:2)
+project_two$ventilation_support_level_modified.44 = 
+  ordered(project_two$ventilation_support_level_modified.44, levels = 0:2)
+```
+
+### Demographic characteristic
+
+Despite the lack of balance in the dataset among centres. The objective
+of this experiment was to forecast the likelihood of patients
+experiencing unfavourable outcomes. If a significant emphasis is placed
+on the centralization of data to construct a prediction model, there is
+a potential for bias in the predictions made for patients from various
+centres. To enhance comprehension of the dataset, we shall generate the
+subsequent tables and diagrams.
+
+Table 1 presents an overview of the distinguishing features exhibited by
+individuals who experienced severe outcomes compared to those who did
+not. It is evident that a significant number of missing data were
+observed for all surf variables. In this particular instance, we have
+made the decision to provide a novel level as a signal for any surf
+variable that is missing. In analyzing the table, it becomes evident
+that there exist notable disparities across several characteristics
+between cases with severe outcomes and those without severe outcomes.
+For instance, the variables of interest include the gestational age at
+hospital discharge, if the newborn is tiny for gestational age, and the
+birth weight.
+
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+project_two %>%
+  dplyr::select(-c(record_id,weight_today.36,ventilation_support_level.36,
+                   inspired_oxygen.36, p_delta.36, peep_cm_h2o_modified.36, med_ph.36,
+                   weight_today.44, ventilation_support_level_modified.44, inspired_oxygen.44,
+                   p_delta.44, peep_cm_h2o_modified.44,med_ph.44,center, Trach,
+                   Death))  %>%
+  tbl_summary(by = outcome_result,
+              statistic = list(all_continuous() ~ "{mean} ({sd})",
+              all_categorical() ~ "{n} / {N} ({p}%)"),
+              missing_text = "(Missing)") %>%
+  add_p() %>%
+  filter_p() %>%
+  sort_p() %>%
+  bold_labels() %>%
+  modify_header(label = "**Characteristics**", 
+                stat_1 = "**With severe outcome**, N = 814",
+                stat_2 = "**Without severe outcome**, N = 183") %>%
+  as_kable_extra(booktabs = TRUE,
+                 caption = "Characteristics of patients with or without severe outcome") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+Table 2 presents the medical metrics of patients categorized based on
+the presence or absence of severe outcomes. Based on the data shown in
+the table, a significant number of missing values were observed in the
+medical measurements values for week 44. In the study, it was seen that
+a total of 422 individuals did not participate in the measures conducted
+during week 44. Similarly, 30 individuals did not partake in the
+measurements conducted during week 36. However, it was found that 542
+individuals participated in both the measurements conducted during week
+36 and week 44. In order to conduct a more rigorous analysis, it was
+determined that the measures from week 44 should be excluded. This
+decision was made to mitigate any bias resulting from missing results.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+project_two %>%
+  dplyr::select(c(weight_today.36,ventilation_support_level.36,
+                   inspired_oxygen.36, p_delta.36, peep_cm_h2o_modified.36, med_ph.36,
+                   weight_today.44, ventilation_support_level_modified.44, inspired_oxygen.44,
+                   p_delta.44, peep_cm_h2o_modified.44,med_ph.44, outcome_result))  %>%
+  tbl_summary(by = outcome_result,
+              statistic = list(all_continuous() ~ "{mean} ({sd})",
+              all_categorical() ~ "{n} / {N} ({p}%)"),
+              missing_text = "(Missing)") %>%
+  #add_p() %>%
+  #filter_p() %>%
+  #sort_p() %>%
+  bold_labels() %>%
+  modify_header(label = "**Characteristics**", 
+                stat_1 = "**With severe outcome**",
+                stat_2 = "**Without severe outcome**") %>%
+  as_kable_extra(booktabs = TRUE,
+                 caption = "Medical measures of patients with or without severe outcome") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r, echo=FALSE, fig.align="default", out.width='50%'}
+#par(mfrow =c(1,2))
+# Create a combined histogram using ggplot2
+#ggplot(project_two, aes(x=bw, fill=factor(outcome_result))) + 
+#  geom_histogram(position="dodge", binwidth=1) + # adjust binwidth as needed
+#  labs(fill="Outcome Result", 
+#       x="Weight", 
+#       y="Frequency", 
+#       title="Histogram of Weight by Outcome Result") +
+#  scale_fill_manual(values=c("blue", "red")) # colors for each outcome_result
+
+# Create a combined histogram using ggplot2
+#ggplot(project_two, aes(x=ga, fill=factor(outcome_result))) + 
+#  geom_histogram(position="dodge", binwidth=1) + # adjust binwidth as needed
+#  labs(fill="Outcome Result", 
+#       x="Gestational age", 
+#       y="Frequency", 
+#       title="Histogram of Gestational age by Outcome Result") +
+#  scale_fill_manual(values=c("lightblue", "lightpink")) # colors for each outcome_result
+```
+
+```{r,echo=FALSE}
+# remove 44 weeks' variable (i.e., due to extremely high missing percentage)
+project_two = project_two %>% 
+  dplyr::select(-c(weight_today.44, ventilation_support_level_modified.44, inspired_oxygen.44,
+                   p_delta.44, peep_cm_h2o_modified.44, med_ph.44))
+```
+
+```{r,echo=FALSE}
+# create a new category for any_surf variable (i.e., missing indicator)
+project_two = project_two %>%
+  mutate(any_surf = case_when(
+    any_surf == 1 ~ 1,
+    any_surf == 0 ~ 0,
+    is.na(any_surf) == TRUE ~ 2
+  ))
+```
+
+```{r,echo=FALSE}
+project_two = project_two  %>%
+  dplyr::select(-c(record_id, Trach, Death))
+```
+
+### Missing values
+
+In order to address the issue of the missing value, the multiple
+imputation approach will be employed. Multiple imputations are a
+statistical methodology employed to address the issue of missing data
+within the context of research projects. The occurrence of missing data
+might arise when participants are required to provide responses to
+particular queries or when data points are unavailable due to different
+factors. The objective of multiple imputations is to estimate or impute
+missing values by utilizing the available observable data, resulting in
+the creation of numerous imputed datasets that are deemed reasonable.
+[@sterne2009]
+
+To effectively apply multiple imputation methods for handling missing
+data, it is necessary to assess if the dataset satisfies the assumption
+of Missing at Random (MAR). There exists a correlation between the
+presence of missing values and some measured variables, whereas no
+correlation is seen between the presence of missing values and the
+variable that possesses those missing values.The symbol
+$R \perp\!\!\!\!\perp X$ represents the perpendicularity relation
+between two geometric objects. Let X be the variable that encompasses
+missing values, and Y be the other measured variable. It is observed
+that $X_i$, but the probability of $R_i$ being equal to 1 given $X_i$
+and $Y_i$ is equal to the probability of $R_i$ being equal to 1 given
+$Y_i$. ( \textit{i.e.,} $Pr(R_i=1|X_i, Y_i ) = Pr(R_i=1|Y_i)$ )
+
+To effectively utilize multiple imputation approaches, it is necessary
+to assess whether the missing pattern adheres to the premise of missing
+at random. This study aims to examine and evaluate the features of smoke
+exposure from maternal or partner sources over various time periods in
+individuals, with the objective of elucidating the association between
+smoking during pregnancy and its effects. We then carried out Pearson's
+Chi-squared tests to compare the proportions of the two groups seperatly
+for each smoking status or exposure to smoking status.
+
+```{r,echo=FALSE}
+# due to our research goal was to predict the bad outcome (Death or Trachoestomy) based on patients characteristics,
+# the new dataset may belong to different center. Include center variable to generate the prediction model may 
+# increase prediction error. 
+project_two = project_two  %>%   
+  dplyr::select(-c(center))
+```
+
+```{r,echo=FALSE}
+probability_missing = unlist(lapply(project_two, function(x) sum(is.na(x))))/nrow(project_two)
+
+temp_missing_value = sort(probability_missing[probability_missing > 0], decreasing = TRUE)
+```
+
+Based on the data provided, it is evident that there were a total of 16
+variables that exhibited missing values. Fortunately, the missing
+proportion of all those variables does not exceed $25\%$. In this
+particular scenario, the utilization of multiple imputation techniques
+can be employed to address the issue of missing data. To ensure the
+replicability of our multiple imputations procedure, we initialized the
+random number generator seed to a fixed value of 1550. To enhance
+clarity, we will employ the numerical value of 5 at the present moment.
+Meanwhile, we used default method to perform multiple imputation method.
+The output object would be S3 object of class mids ( \textit{i.e.,}
+Multiply imputed data set). Based on the data from the statistical
+software package R, it is evident that the predictive mean matching
+technique was employed for imputing numerical variables. Both the
+Bayesian polytomous regression model and the logistic regression model
+were employed for the purpose of imputing categorical variables.
+
+```{r,echo=FALSE}
+temp_missing_value = as.data.frame(temp_missing_value)
+variable_names = c("p delta.36", "hosp dc ga", "peep cm h2o modified.36",
+                   "weight today.36", "inspired oxygen.36", "blength",
+                   "birth hc", "com prenat ster", "mat chorio", "mat ethn",
+                   "prenat ster", "ventilatin support level.36", "med ph.36",
+                   "sga", "gender", "del method")
+
+temp_missing_value$variable_name = variable_names
+
+temp_missing_value = temp_missing_value %>% relocate(variable_name, .before = temp_missing_value)
+
+temp_missing_value <- temp_missing_value %>% 
+       rename("missing percentage" = "temp_missing_value")
+
+gt_tbls = gt(temp_missing_value)
+
+gt_tbls <- 
+  gt_tbls |>
+  tab_header(
+    title = "Missing percentage of variables" )
+
+gt_tbls
+```
+
+```{r,echo=FALSE}
+set.seed(1)
+ignore = sample(c(TRUE, FALSE), size = dim(project_two)[1], replace = TRUE, prob = c(0.3, 0.7))
+```
+
+To assess the predictive performance of various models, the dataset is
+partitioned into two subsets, namely the training set and the validation
+set, using multiple imputation techniques. The train dataset comprises
+$70\%$ of the entire dataset, while the validation dataset accounts for
+the remaining $30\%$.
+
+```{r,echo=FALSE}
+traindata = project_two[!ignore, ]
+testdata = project_two[ignore, ]
+imp.train = mice(traindata, m = 5, print = FALSE, seed = 1550)
+imp.test = mice.mids(imp.train, newdata = testdata,print = FALSE)
+```
+
+```{r,echo=FALSE}
+train_imp = vector("list",5)   
+for (i in 1:5){
+  train_imp[[i]] = mice::complete(imp.train,i) 
+}
+```
+
+```{r,echo=FALSE}
+test_imp = vector("list",5)   
+for (i in 1:5){
+  test_imp[[i]] = mice::complete(imp.test,i) 
+}
+```
+
+## Model selection
+
+In the realm of predictive modeling, LASSO regression plays a crucial
+role in feature selection and regularization to enhance the prediction
+accuracy and interpretability of the statistical model it produces. A
+pivotal aspect of implementing LASSO regression is the selection of the
+optimal lambda, the tuning parameter that dictates the level of penalty
+applied to the coefficients. To determine the most suitable lambda
+value, LASSO employs cross-validation, a robust method that divides the
+database into a specified number of 'folds' or subsets. The model is
+then trained on all but one fold (the training set) and validated on the
+remaining fold (the validation set), iteratively cycling through the
+folds so each serves as the validation set once. Throughout this
+cross-validation process, various lambda values are tested, and the
+model performance is evaluated using a predefined metric, typically mean
+squared error for regression tasks. The lambda that minimizes the error
+across all validation sets is selected as the optimal one. This method
+ensures that the chosen lambda generalizes well to unseen data,
+balancing the model's complexity and its capacity to capture the
+underlying patterns in the data without overfitting. [@ranstam2018]
+
+In Ridge regression, an essential parameter that requires careful
+calibration is lambda, also known as the regularization parameter. It
+controls the extent to which the magnitude of the coefficients is
+penalized, with the aim of reducing overfitting and improving model
+generalization. To optimally select lambda, cross-validation is employed
+as a systematic method that involves partitioning the data into
+complementary subsets, conducting the analysis on one subset (the
+training set), and validating the analysis on the other subset (the
+validation set). This process is repeated multiple times, with each
+iteration featuring a different lambda value. The cross-validation
+routine typically uses the mean squared error as a metric to assess
+model performance. The value of lambda that results in the lowest
+average error across all the validation sets is considered the optimal
+choice. This cross-validated choice of lambda ensures that the
+regularization effect is neither too lenient, allowing overfitting, nor
+too strict, which might underfit the model, thus ensuring a balanced and
+robust predictive model. [@pereira2016]
+
+The logistic regression model is a statistical method used to model
+binary outcomes. When implemented without regularization, the model
+focuses solely on maximizing the likelihood of the observed data without
+imposing any penalties on the size of the coefficients. This approach is
+based on the principle of maximum likelihood estimation, where the goal
+is to find the parameter values that make the observed data most
+probable. Without regularization, every predictor's influence is fully
+realized in the model, potentially leading to a model that fits the
+training data very closely. While this can lead to excellent performance
+on the training data, it can also make the model more vulnerable to
+overfitting, where it captures noise as if it were a signal. This lack
+of regularization demands that the model's application be carefully
+monitored, ensuring that the number of predictors is reasonable and that
+the model is validated using separate test data to confirm that the
+predictive power holds for new, unseen data. In cases where overfitting
+is a concern, practitioners may opt to manually remove irrelevant
+variables or collect more data to improve the model's robustness.
+[@sperandei2014]
+
+Forward stepwise selection starts with no variables in the model, adding
+them one by one based on a specified criterion -- in this case, the AIC.
+The AIC is a measure of the relative quality of a statistical model,
+balancing model fit with complexity. A lower AIC indicates a better
+model, but it can be misleading when used alone in stepwise selection.
+It tends to favor more complex models with more variables, which can
+lead to overfitting. This is where cross-validation becomes crucial. By
+integrating cross-validation into forward stepwise selection, the
+model-building process becomes more focused on generalization rather
+than just fitting the training data. Each potential model -- with
+varying numbers of predictor variables -- is evaluated based on its
+cross-validated performance. The number of variables to include is then
+decided not just on the basis of AIC on the training set, but also on
+how well the model generalizes to the validation sets in the
+cross-validation procedure. This approach helps in selecting a model
+that strikes a balance between complexity (as judged by AIC) and
+generalizability (as assessed by cross-validation), leading to a more
+reliable and effective predictive model. [@grogan2017a]
+
+```{r,echo=FALSE, warning=FALSE}
+###################################################### 
+#### Lasso #### 
+###################################################### 
+lassor = function(df) {
+  #' Runs 10-fold CV for lasso and returns corresponding coefficients
+  #' @param df, data set
+  #' @return coef, coefficients for minimum cv error
+
+  # Matrix form for ordered variables
+  x.ord = model.matrix(outcome_result~., data = df)[,-1]
+  y.ord = df$outcome_result
+  # Generate folds
+  k = 10
+  set.seed(1) # consistent seeds between imputed data sets
+  folds = sample(1:k, nrow(df), replace=TRUE)
+  # Lasso model
+  lasso_mod_cv = cv.glmnet(x.ord, y.ord, nfolds = 10, 
+                           foldid = folds,alpha = 1, 
+                           family = "binomial")
+  lasso_mod = glmnet(x.ord, y.ord, folds = 10, 
+                     alpha = 1, family = "binomial", 
+                     lambda = lasso_mod_cv$lambda.min)
+  # Get coefficients
+  Coef = coef(lasso_mod)
+  return(Coef)
+}
+###################################################### 
+## logistic regression model with no regularization ##
+######################################################  
+logistic_regression_model = function(df){
+  #' Fit logistic regression to the dataset
+  #' @param df, data set
+  #' @return coef
+
+  x.ord = model.matrix(outcome_result~., data = df)[,-1] 
+  y.ord = df$outcome_result
+  temp_temp = as.data.frame(cbind(x.ord, y.ord))
+  logistic_model = glm(as.factor(y.ord)~.,family = "binomial",data=temp_temp)
+  coefficient_value = logistic_model$coefficients
+  return(coefficient_value)
+}
+
+
+###################################################### 
+#### Ridge #### 
+###################################################### 
+Ridge = function(df){
+  #' Runs 10-fold CV for ridge and returns corresponding coefficients 
+  #' @param df, data set
+  #' @return coef, coefficients for minimum cv error
+  
+  # Matrix form for ordered variables 
+  x.ord = model.matrix(outcome_result~., data = df)[,-1] 
+  y.ord = df$outcome_result
+  
+  # Generate folds
+  k = 10 
+  set.seed(1) # consistent seeds between imputed data sets
+  folds = sample(1:k, nrow(df), replace=TRUE)
+  
+  # Ridge model
+  ridge_model = cv.glmnet(x.ord, y.ord, alpha = 0, family = "binomial",
+                       nfolds = 10, foldid = folds)
+  
+  # Get coefficients 
+  coef = coef(ridge_model, lambda = ridge_model$lambda.min) 
+  return(coef) 
+}
+
+
+###################################################### 
+#### Forward Stepwise selection model #### 
+###################################################### 
+# Fit Forward Stepwise selection model using cross-validation
+stepwise_AIC_model = function(df){
+  outcome_var = "outcome_result"
+  predictor_vars = setdiff(names(df), outcome_var)
+  folds = createFolds(df[[outcome_var]], k = 14, list = TRUE, returnTrain = TRUE)
+  cv_results = list()
+  for(i in seq_along(folds)) {
+    train_set = df[folds[[i]], ]
+  
+  # Fit the initial model with only the intercept
+    initial_model = glm(as.formula(paste(outcome_var, "~ 1")),
+                        data = train_set, family = binomial)
+  
+  # Perform stepwise selection using AIC as the criterion
+    stepwise_model = stepAIC(initial_model, 
+                              scope = list(lower = as.formula(paste(outcome_var, "~ 1")), 
+                                         upper = as.formula(paste(outcome_var, "~", paste(predictor_vars, collapse = "+")))), 
+                              direction = "forward", trace = FALSE)
+  
+  # Store the selected model's formula and AIC
+    cv_results[[i]] = list(formula = formula(stepwise_model), aic = AIC(stepwise_model))
+  }
+  average_aics = sapply(cv_results, function(x) x$aic)
+  best_fold = which.min(average_aics)
+  best_model_formula = cv_results[[best_fold]]$formula
+  final_model = glm(best_model_formula, data = df, family = binomial)
+  best_model = coef(final_model)
+  return(best_model)
+}
+```
+
+```{r,echo=FALSE,warning=FALSE}
+# for each imputations
+lasso_coefficient = c()
+ridge_coefficient = c()
+logistic_coefficient = c()
+stepwise_forward_AIC = c()
+for(i in 1:5){
+  temp_dataset = train_imp[[i]]
+  lasso_temp = lassor(temp_dataset)
+  ridge_temp = Ridge(temp_dataset)
+  stepwise_AIC_temp = stepwise_AIC_model(temp_dataset)
+  logistic_temp = logistic_regression_model(temp_dataset)
+  logistic_temp = as.numeric(logistic_temp)
+
+  lasso_coefficient = cbind(lasso_coefficient, lasso_temp)
+  ridge_coefficient = cbind(ridge_coefficient, ridge_temp)
+  stepwise_forward_AIC = cbind(stepwise_forward_AIC, stepwise_AIC_temp)
+  logistic_coefficient = c(logistic_coefficient, logistic_temp)
+  logistic_coefficient = matrix(logistic_coefficient, nrow=21, byrow=FALSE)
+}
+```
+
+```{r,echo=FALSE}
+avg_coefs_lasso = apply(lasso_coefficient, 1, mean)
+avg_coefs_ridge = apply(ridge_coefficient, 1, mean)
+avg_coefs_logistic = apply(logistic_coefficient, 1, mean)
+avg_coefs_stepwise_AIC = apply(stepwise_forward_AIC, 1, mean)
+```
+
+```{r,echo=FALSE}
+average_coefficient = as.data.frame(cbind(avg_coefs_lasso, avg_coefs_ridge))
+average_coefficient$avg_coefs_logistic = avg_coefs_logistic
+colnames(average_coefficient)[colnames(average_coefficient) == "V1"] ="avg_coefs_lasso"
+colnames(average_coefficient)[colnames(average_coefficient) == "V2"] ="avg_coefs_ridge"
+```
+
+```{r,echo=FALSE}
+avg_coefs_stepwise_AIC_df = data.frame(coef_stepwise_AIC = avg_coefs_stepwise_AIC)
+
+avg_coefs_stepwise_AIC_df$variable = names(avg_coefs_stepwise_AIC)
+
+average_coefficient$variable = rownames(average_coefficient)
+
+merged_dataset = merge(average_coefficient, avg_coefs_stepwise_AIC_df, by = "variable", all = TRUE)
+```
+
+```{r,echo=FALSE}
+merged_dataset[merged_dataset == 0] = NA
+variable_name = c("intercept","any surf", "birth hc", "blength", "bw",
+                  "com prenat ster1", "del method2", "ga", "gender1", 
+                  "hosp dc ga", "inspired oxygen.36", "mat chorio1",
+                  "mat ethn2", "med ph.361", "p delta.36", "peep cm h2o modified.36",
+                  "prenat ster1", "sga1", "ventilation support level.36.L", "ventilation support level 36.Q",
+                  "weight today.36")
+```
+
+```{r,echo=FALSE}
+merged_dataset = merged_dataset %>%   
+  dplyr::select(-c(variable))
+merged_dataset$variable_name = variable_name
+```
+
+```{r,echo=FALSE}
+merged_dataset = merged_dataset %>% relocate(variable_name, .before = avg_coefs_lasso)
+```
+
+```{r,echo=FALSE}
+gt_tbl = gt(merged_dataset)
+
+gt_tbl <- 
+  gt_tbl |>
+  tab_header(
+    title = "Average coefficient values for different models" )
+
+gt_tbl
+```
+
+The above table presents the average coefficient values derived from
+various predictive models, indicating the strength and direction of the
+association between each independent variable and the dependent
+variable. This comparison can reveal differences in how each model
+handles multicollinearity, variable selection, and regularization. The
+LASSO regression coefficients suggest a model emphasizing parsimony,
+with some variables possibly reduced to zero to prevent overfitting. On
+the other hand, Ridge regression coefficients, while also penalized,
+retain all variables but with shrunk magnitudes to control for
+multicollinearity. The Logistic regression coefficients are used for a
+model where the outcome is categorical, reflecting the log odds of the
+outcome occurring. Notably, some variables were not included in the
+stepwise regression model, as indicated by "NA" in the coefficient
+column, which suggests that those variables were not statistically
+significant contributors to the model according to the Akaike
+Information Criterion (AIC). The 'intercept' term across models has a
+consistently negative value, implying a lower baseline prediction when
+all other variables are at their reference levels. The variation in
+coefficients across models underscores the importance of model selection
+based on the nature of the data and the research question at hand.
+
+In the upcoming session, we will engage in the model assessment process
+by employing metrics of discrimination and calibration.
+
+## Model evaluation
+
+The Area Under the Curve (AUC) is a widely used metric in the evaluation
+of classification models, particularly in the context of binary
+classification tasks. It refers to the area under the Receiver Operating
+Characteristic (ROC) curve, a graphical plot that illustrates the
+diagnostic ability of a binary classifier system. The ROC curve is
+created by plotting the True Positive Rate (TPR, also known as
+sensitivity) against the False Positive Rate (FPR, 1 - specificity) at
+various threshold settings. The AUC provides a single, aggregate measure
+of performance across all possible classification thresholds,
+effectively summarizing the trade-off between the true positive rate and
+false positive rate for a predictive model. An AUC of 1.0 represents a
+perfect classifier that makes no false positive or false negative
+predictions. Conversely, an AUC of 0.5 denotes a model with no
+discriminative power, equivalent to random guessing. Generally, higher
+AUC values indicate better model performance. [@bradley1997]
+
+The Brier Score is a widely used metric for assessing the accuracy of
+probabilistic predictions, especially in the context of forecasting
+binary outcomes. This score measures the mean squared difference between
+the predicted probability assigned to the possible outcomes and the
+actual outcome. The Brier Score is calculated as
+$\text{BS} = \frac{1}{N} \sum^N_{i=1} (f_i - o_i)^2$, where $N$ is the
+number of predictions, $f_i$​ is the forecasted probability of the event
+occurring, and $o_i$ is the actual outcome (0 if the event did not
+occur, 1 if it did). This formula encapsulates the essence of the score:
+it is a mean squared error for probability forecasts. A lower Brier
+Score indicates better forecasting accuracy, with a score of 0
+representing perfect accuracy. [@rufibach2010]
+
+```{r,echo=FALSE}
+test_dataset_long = mice::complete(imp.test,action="long") 
+x_vars = model.matrix(outcome_result~. , test_dataset_long)[,-c(2,3)]
+```
+
+```{r,echo=FALSE}
+lasso_predict = x_vars %*% avg_coefs_lasso
+lasso_prediction_value = 1/(1+exp(-lasso_predict))
+
+ridge_prediction = x_vars %*% avg_coefs_ridge
+ridge_prediction_value = 1/(1+exp(-ridge_prediction))
+
+logistic_prediction = x_vars %*% avg_coefs_logistic
+logistic_prediction_value = 1/(1+exp(-logistic_prediction))
+
+merged_dataset$coef_stepwise_AIC[is.na(merged_dataset$coef_stepwise_AIC)] = 0
+stepwise_prediction = x_vars %*% merged_dataset$coef_stepwise_AIC
+stepwise_prediction_value = 1/(1+exp(-stepwise_prediction))
+```
+
+The following visualizations depict Receiver Operating Characteristic
+(ROC) curves for four different predictive models, each graphed to
+illustrate the trade-off between sensitivity (true positive rate) and
+specificity (false positive rate) at various threshold settings. These
+curves are pivotal for evaluating the diagnostic ability of binary
+classifiers.
+
+The LASSO model's ROC curve achieves an Area Under the Curve (AUC) of
+0.863, indicative of a very good classification ability. A notable point
+on the curve, with coordinates (0.788, 0.812), represents a specific
+threshold with a relatively high true positive rate and a modestly low
+false positive rate, suggesting an effective balance for this model.
+
+Similarly, the Ridge model's ROC curve demonstrates an AUC of 0.861,
+which is close to the LASSO model's performance, denoting very good
+discrimination capacity. The highlighted point on this curve, (0.782,
+0.823), suggests a slightly better specificity than the LASSO model for
+a similar sensitivity level, implying a slightly better threshold
+trade-off.
+
+The ROC curve for the logistic regression model shows an AUC of 0.857.
+While this is slightly lower than the LASSO and Ridge models, it still
+represents a good ability to differentiate between the two outcome
+classes. The chosen threshold point (0.785, 0.796) on this curve is
+indicative of a good balance between sensitivity and specificity.
+
+The stepwise forward selection model's ROC curve stands out with an AUC
+of only 0.520, barely above the no-discrimination line (AUC = 0.5). The
+graph reveals a curve that approaches the no-discrimination line more
+closely than the other models, with a highlighted threshold point
+(0.772, 0.319) indicating a high false positive rate relative to the
+true positive rate. This suggests that this model is not a reliable
+classifier and performs only slightly better than random guessing.
+
+```{r, echo=FALSE, out.width = '75%',fig.align = "center"}
+roc_mod_lasso = roc(predictor=lasso_prediction_value, 
+               response=as.factor(test_dataset_long$outcome_result), 
+               levels = c(0,1), direction = "<")
+
+roc_mod_ridge = roc(predictor=ridge_prediction_value, 
+               response=as.factor(test_dataset_long$outcome_result), 
+               levels = c(0,1), direction = "<")
+
+roc_mod_logistic = roc(predictor=logistic_prediction_value, 
+               response=as.factor(test_dataset_long$outcome_result), 
+               levels = c(0,1), direction = "<")
+
+roc_mod_stepwise = roc(predictor=stepwise_prediction_value, 
+               response=as.factor(test_dataset_long$outcome_result), 
+               levels = c(0,1), direction = "<")
+
+par(mfrow = c(2, 2))
+
+plot(roc_mod_lasso, print.auc=TRUE, print.thres = TRUE,
+     col="lightblue",main="AUC for lasso model")
+
+plot(roc_mod_ridge, print.auc=TRUE, print.thres = TRUE,
+     col="lightpink",main="AUC for ridge model")
+
+plot(roc_mod_logistic, print.auc=TRUE, print.thres = TRUE, 
+     col="orange", main="AUC for logistic risk model")
+
+plot(roc_mod_stepwise, print.auc=TRUE, print.thres = TRUE, 
+     col="mediumpurple",main="AUC for stepwise forward selection model")
+```
+
+```{r,echo=FALSE}
+lasso_auc = 0.863
+ridge_auc = 0.861
+logistic_acu = 0.857
+stepwise_acu = 0.520
+
+auc_dataset = cbind(lasso_auc, ridge_auc,
+                           logistic_acu, stepwise_acu)
+
+auc_dataset = as.data.frame(auc_dataset)
+auc_dataset %>%
+  mutate_all(linebreak) %>%
+  kbl(caption = "AUC for four different model",
+      col.names=linebreak(c("lasso", "ridge", "logistic regression",
+                            "stepwise forward selection")),
+      booktabs=T, escape=F, align = "c") %>%
+kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+```
+
+According to the above table, The LASSO (Least Absolute Shrinkage and
+Selection Operator) regression model has an AUC of 0.863. This indicates
+a very good predictive ability. The model is able to distinguish between
+the two classes (positive and negative) with high accuracy. The Ridge
+regression model, which is similar to LASSO but uses a different
+regularization technique, has an AUC of 0.861. This is also a strong
+score, very close to that of LASSO, suggesting that it performs
+similarly well in classification. The logistic regression model, a
+standard model for binary classification, has an AUC of 0.857. This is
+slightly lower than LASSO and Ridge but still indicates a good
+predictive ability. The stepwise regression model, which is a method of
+selecting variables in a regression model, has an AUC of 0.520. This is
+only slightly better than random guessing (which would have an AUC of
+0.5). This suggests that the stepwise model is not effectively
+distinguishing between the two classes and is not performing well in
+this particular task.
+
+```{r,echo=FALSE}
+lasso_BrierScore = BrierScore(as.numeric(test_dataset_long$outcome_result),
+                              lasso_prediction_value)
+
+ridge_BrierScore = BrierScore(as.numeric(test_dataset_long$outcome_result),
+                              ridge_prediction_value)
+
+logistic_BrierScore = BrierScore(as.numeric(test_dataset_long$outcome_result),
+                              logistic_prediction_value)
+
+stepwise_BrierScore = BrierScore(as.numeric(test_dataset_long$outcome_result),
+                              stepwise_prediction_value)
+
+BrierScore_dataset = cbind(lasso_BrierScore, ridge_BrierScore,
+                           logistic_BrierScore, stepwise_BrierScore)
+
+BrierScore_dataset = as.data.frame(BrierScore_dataset)
+BrierScore_dataset %>%
+  mutate_all(linebreak) %>%
+  kbl(caption = "Brier Score for four different model",
+      col.names=linebreak(c("lasso", "ridge", "logistic regression",
+                            "stepwise forward selection")),
+      booktabs=T, escape=F, align = "c") %>%
+kable_styling(full_width = FALSE, latex_options = c('hold_position'))
+```
+
+In assessing the performance of various predictive models using the
+Brier Score, a metric that quantifies the accuracy of probabilistic
+predictions in binary outcomes, we observe notable variations across
+different models. The LASSO model exhibits a Brier Score of 0.7756739,
+suggesting a moderate level of accuracy in its probability predictions.
+This relatively high score indicates that while the model is generally
+effective (as evidenced by its high AUC), its probabilistic estimates
+are not as precise. The Ridge model, with a Brier Score of 0.7582929,
+demonstrates slightly improved predictive accuracy in comparison to the
+LASSO model. This lower score indicates better calibration in
+probability estimates, though there is still considerable room for
+enhancement. The Logistic Regression model, on the other hand, records
+the highest Brier Score among the three at 0.789387. This score points
+to less accurate probability predictions compared to the LASSO and Ridge
+models, despite its commendable AUC performance. An anomaly is observed
+in the Forward Stepwise Selection model, which presents a negative Brier
+Score of -0.1716172. This result is unconventional, as Brier Scores
+typically range from 0 to 1, and a negative score suggests possible
+errors in calculation or in the model\'s output. This aberration
+necessitates a thorough review of the model's methodology and
+computational accuracy. Overall, while the Ridge model emerges as the
+most accurate in terms of probability predictions, all models exhibit
+scope for improvement in precision, as indicated by their relatively
+high Brier Scores.
+
+## Conclusion
+
+Despite the inherent difficulties associated with the presence of
+missing data, the utilization of multiple imputation techniques offered
+a resilient framework for conducting the research. The statistical
+models utilized, such as LASSO and Ridge regression, had notable
+prediction ability, as indicated by their AUC values and Brier Score
+values. Based on the analysis conducted using AUC values and Brier Score
+values, it has been observed that the forward stepwise selection
+approach, which use cross-validation to determine the number of
+variables to include, is not effective for this particular dataset.
+
+## Future work
+
+In this study, we excluded the medical measure from week 44 due to a
+substantial number of missing values in order to facilitate the variable
+selection and model selection procedures. In future research endeavours,
+it is recommended to address the issue of missing values in week 44 by
+using appropriate techniques. Additionally, considering the dataset as a
+longitudinal dataset would enable the opportunity for doing more
+comprehensive analyses. In the present analysis, the "centre" variable
+has been excluded from the dataset. In further investigations, it may be
+worthwhile to employ a generalized linear mixed effect model in order to
+examine the variations among different centres.
+
+```{r,echo=FALSE,message=FALSE}
+###################################################### 
+#### Lasso with interaction term #### 
+###################################################### 
+#lasso_with_interaction <- function(df) { 
+#  #' Runs 10-fold CV for lasso and returns corresponding coefficients 
+#  #' @param df, data set
+#  #' @return coef, coefficients for minimum cv error
+
+ #Matrix form for ordered variables 
+#  formula <- as.formula(outcome_result ~ .*.)
+#  x.ord <- model.matrix(formula, data = df)[,-1] 
+#  y.ord <- df$outcome_result
+
+# Generate folds
+#  k <- 10 
+#  set.seed(1) # consistent seeds between imputed data sets
+#  folds <- sample(1:k, nrow(df), replace=TRUE)
+
+ #Lasso model
+#  lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = 10, foldid = folds, 
+#                         alpha = 1, family = "binomial") 
+  
+# Get coefficients 
+#  coef <- coef(lasso_mod, lambda = lasso_mod$lambda.min) 
+#  return(coef) 
+#} 
+```
+
+\newpage
+
+Code appendix
+
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE, include=TRUE}
+
+```
