@@ -1,4 +1,4 @@
-# PHP2550_project2
+# PHP2550 project2
 Predict the possibility of tracheostomy or mortality in individuals with severe bronchopulmonary dysplasia, utilizing multiple characteristics and medical measurements at 36 weeks postpartum
 
 
