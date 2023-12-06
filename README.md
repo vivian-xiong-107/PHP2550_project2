@@ -5,10 +5,10 @@ Predict the possibility of tracheostomy or mortality in individuals with severe 
 Caiwei Xiong
 
 ## Abstract
-**Background:**
+**Background:** Tracheostomy insertion may provide potential benefits for patients presenting with severe cases of bronchopulmonary dysplasia (BPD). Nevertheless, the implantation of a tracheostomy may potentially elevate the likelihood of mortality, inadvertent removal of the cannula, obstruction of the cannula, heightened rates of infection, and the development of tracheal stenosis.
 
 
-**Methods:**
+**Methods:** This report will utilize various predictive models, including the lasso model, ridge model, logistic regression (without regularization), and the forward stepwise selection model, to accurately forecast the outcome.
 
 
 **Results:**
