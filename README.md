@@ -52,3 +52,7 @@ glmnet (4.1-8)
 
 ## Files
 The codes for preprocessing was stored in: ``project2_preprocessing.R``, the codes for models was stored in: ``proejct2_models.R``, the codes for construct report was stored in: ``Project2.Rmd``
+
+## Acknowledgement
+
+This project represents a collaborative effort, involving Dr. Chris Schmid in the Biostatistics Department(christopher_schmid@brown.edu), and is under the guidance of Dr. Alice Paul (alice_paul@brown.edu)."
