@@ -55,4 +55,4 @@ The codes for preprocessing was stored in: ``project2_preprocessing.R``, the cod
 
 ## Acknowledgement
 
-This project represents a collaborative effort, involving Dr. Chris Schmid in the Biostatistics Department(christopher_schmid@brown.edu), and is under the guidance of Dr. Alice Paul (alice_paul@brown.edu)."
+This project represents a collaborative effort, involving Dr. Chris Schmid in the Biostatistics Department(christopher_schmid@brown.edu), and is under the guidance of Dr. Alice Paul (alice_paul@brown.edu).
