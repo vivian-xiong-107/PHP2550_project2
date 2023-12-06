@@ -23,7 +23,7 @@ The BPD Collaborative Registry, a multi-center cooperation of multidisciplinary 
 
 ## Packages
 
-All code contained within the R Markdown (Rmd) file is compatible with R version 4.2.1 and can be successfully compiled. The following part lists the packages and their corresponding versions that will be used:
+All code contained within the R Markdown (Rmd) file, and R scripts are compatible with R version 4.2.1 and can be successfully compiled. The following part lists the packages and their corresponding versions that will be used:
 
 DescTools (0.99.5)
 
