@@ -26,13 +26,15 @@ The BPD Collaborative Registry, a multi-center cooperation of multidisciplinary 
 
 |              | Ridge regression model | Lasso regression model | Best subset model | Logistic regression model|
 |:-------------|:----------------------:|-----------------------:|------------------:|-------------------------:|
-|     AUC      |          0.861         |          0.863         |       0.918       |          0.857           |
-|  Brier Score |          0.758         |          0.776         |       0.776       |          0.789           |
-|  Sensitivity |                        |                        |                   |                          |
-|  Specificity |                        |                        |                   |                          |
-|   Accuracy   |                        |                        |                   |                          |
-|   Precision  |                        |                        |                   |                          |
+|     AUC      |          0.907         |          0.909         |       0.918       |          0.899           |
+|  Brier Score |          0.761         |          0.770         |       0.776       |          0.773           |
+|  Sensitivity |          0.035         |          0.459         |       0.400       |          0.518           |
+|  Specificity |          1.000         |          0.969         |       0.968       |          0.969           |
+|   Accuracy   |          0.875         |          0.903         |       0.894       |          0.911           | 
+|   Precision  |          1.000         |          0.690         |       0.911       |          0.715           |
 
+
+<img src="https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/AUC_models.png" width="300" height="200">
 
 
 ![Calibration Plot](https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/AUC_models.png)
