@@ -53,7 +53,12 @@ glmnet (4.1-8)
 
 |              | Ridge regression model | Lasso regression model | Best subset model | Logistic regression model|
 |:-------------|:----------------------:|-----------------------:|------------------:|-------------------------:|
-|     AUC      |    text                |                   text |                   |                          |
+|     AUC      |          0.861         |          0.863         |       0.918       |          0.857           |
+|  Brier Score |          0.758         |          0.776         |       0.776       |          0.789           |
+|  Sensitivity |                        |                        |                   |                          |
+|  Specificity |                        |                        |                   |                          |
+|   Accuracy   |                        |                        |                   |                          |
+|   Precision  |                        |                        |                   |                          |
 
 ## Files
 The codes for preprocessing was stored in: ``project2_preprocessing.R``, the codes for models was stored in: ``proejct2_models.R``, the codes for construct report was stored in: ``Project2.Rmd``
