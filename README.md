@@ -34,12 +34,12 @@ The BPD Collaborative Registry, a multi-center cooperation of multidisciplinary 
 |   Precision  |          1.000         |          0.690         |       0.911       |          0.715           |
 
 
-<img src="https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/AUC_models.png" width="300" height="200">
+<img src="https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/AUC_models.png" width="600" height="400">
 
 
-![Calibration Plot](https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/AUC_models.png)
 
-![Calibration Plot](https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/calibration_plot.png)
+<img src="https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/calibration_plot.png" width="600" height="400"> 
+
 ## Packages
 
 All code contained within the R Markdown (Rmd) file, and R scripts are compatible with R version 4.2.1 and can be successfully compiled. The following part lists the packages and their corresponding versions that will be used:
