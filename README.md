@@ -21,6 +21,19 @@ Caiwei Xiong
 
 The BPD Collaborative Registry, a multi-center cooperation of multidisciplinary BPD programs in the US and Sweden, was the source of study participants. The consortium was founded to fill evidence gaps and advance research to improve the care of children with severe forms of BPD. Babies with severe bronchopulmonary dysplasia (sBPD), as defined by the NHLBI criteria of 2001 (FiO2 3 0.3 or positive pressure ventilation, either invasive or non-invasive, at 36 weeks postpartum), who have a gestational age of fewer than 32 weeks are included in the registry. Standard clinical and demographic information is gathered for the registry at four different intervals: birth, 36 weeks postpartum, 44 weeks postpartum, and discharge. We searched the registry for individuals with BPD and full growth records between January 1, 2021, and July 19, 2021, in order to conduct this study. Nine BPD Collaborative centres have provided data that met the research inclusion criteria at the time of analysis.
 
+
+## Table and Plots
+
+|              | Ridge regression model | Lasso regression model | Best subset model | Logistic regression model|
+|:-------------|:----------------------:|-----------------------:|------------------:|-------------------------:|
+|     AUC      |          0.861         |          0.863         |       0.918       |          0.857           |
+|  Brier Score |          0.758         |          0.776         |       0.776       |          0.789           |
+|  Sensitivity |                        |                        |                   |                          |
+|  Specificity |                        |                        |                   |                          |
+|   Accuracy   |                        |                        |                   |                          |
+|   Precision  |                        |                        |                   |                          |
+
+
 ## Packages
 
 All code contained within the R Markdown (Rmd) file, and R scripts are compatible with R version 4.2.1 and can be successfully compiled. The following part lists the packages and their corresponding versions that will be used:
@@ -48,17 +61,6 @@ tidyr (1.2.1)
 tidyverse (1.3.2)
 
 glmnet (4.1-8)
-
-## Table and Plots
-
-|              | Ridge regression model | Lasso regression model | Best subset model | Logistic regression model|
-|:-------------|:----------------------:|-----------------------:|------------------:|-------------------------:|
-|     AUC      |          0.861         |          0.863         |       0.918       |          0.857           |
-|  Brier Score |          0.758         |          0.776         |       0.776       |          0.789           |
-|  Sensitivity |                        |                        |                   |                          |
-|  Specificity |                        |                        |                   |                          |
-|   Accuracy   |                        |                        |                   |                          |
-|   Precision  |                        |                        |                   |                          |
 
 ## Files
 The codes for preprocessing was stored in: ``project2_preprocessing.R``, the codes for models was stored in: ``proejct2_models.R``, the codes for construct report was stored in: ``Project2.Rmd``
