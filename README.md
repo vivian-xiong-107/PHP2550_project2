@@ -35,7 +35,7 @@ The BPD Collaborative Registry, a multi-center cooperation of multidisciplinary 
 
 
 
-![Calibration Plot]([https://github.com/yourusername/yourrepository/blob/main/path/to/your/plot.png](https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/AUC_models.png))
+![Calibration Plot](https://github.com/vivian-xiong-107/PHP2550_project2/blob/main/AUC_models.png)
 
 
 ## Packages
