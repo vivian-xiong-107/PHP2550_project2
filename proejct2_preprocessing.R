@@ -11,7 +11,7 @@ project_two$center[is.na(project_two$center)] = 1
 project_two = project_two %>%
   filter(!is.na(Death))
 
-# center 21 is magic number, conver the center 21 to center 1
+# center 21 is magic number, convert the center 21 to center 1
 project_two$center[which(project_two$center == 21)] = 1
 
 
@@ -104,3 +104,6 @@ project_two = project_two  %>%
 # increase prediction error. 
 project_two = project_two  %>%   
   dplyr::select(-c(center))
+
+# remove the patient who discharged before 36 weeks
+project_two = project_two %>% filter(hosp_dc_ga >= 36)
