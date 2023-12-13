@@ -109,7 +109,7 @@ lasso_with_interaction <- function(df) {
   #' @param df, data set
   #' @return coef, coefficients for minimum cv error
 
- Matrix form for ordered variables 
+ #Matrix form for ordered variables 
   formula <- as.formula(outcome_result ~ .*.)
   x.ord <- model.matrix(formula, data = df)[,-1] 
   y.ord <- df$outcome_result
@@ -119,7 +119,7 @@ lasso_with_interaction <- function(df) {
   set.seed(1) # consistent seeds between imputed data sets
   folds <- sample(1:k, nrow(df), replace=TRUE)
 
- Lasso model
+ #Lasso model
   lasso_mod <- cv.glmnet(x.ord, y.ord, nfolds = 10, foldid = folds, 
                          alpha = 1, family = "binomial") 
   
@@ -127,3 +127,21 @@ lasso_with_interaction <- function(df) {
   coef <- coef(lasso_mod, lambda = lasso_mod$lambda.min) 
   return(coef) 
 } 
+
+
+
+###################################################### 
+#### Best subset model #### 
+###################################################### 
+best_subset = function(df){
+  #' Runs 10-fold CV for best subset of logistic regression and returns corresponding coefficients 
+  #' @param df, data set
+  #' @return coef, coefficients for minimum cv error
+  x.ord = model.matrix(outcome_result~ ., data = df)
+  y.ord = df$outcome_result
+  fit = L0Learn.cvfit(x.ord[,-1], y.ord, penalty="L0",loss="Logistic", maxSuppSize=20,nFolds=10, seed=1)
+  best_index = which(unlist(fit$cvMeans)==min(unlist(fit$cvMeans)))
+  coef.bs = as.vector(coef(fit, lambda=print(fit)[best_index,]$lambda))
+  names(coef.bs) = colnames(x.ord)
+  return(coef.bs)
+}
