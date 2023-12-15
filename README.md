@@ -8,14 +8,13 @@ Caiwei Xiong
 **Background:** Tracheostomy insertion may provide potential benefits for patients presenting with severe cases of bronchopulmonary dysplasia (BPD). Nevertheless, the implantation of a tracheostomy may potentially elevate the likelihood of mortality, inadvertent removal of the cannula, obstruction of the cannula, heightened rates of infection, and the development of tracheal stenosis.
 
 
-**Methods:** This report will utilize various predictive models, including the lasso model, ridge model, logistic regression (without regularization), and the forward stepwise selection model, to accurately forecast the outcome.
+**Methods:** This report will employ a range of predictive models - namely, the lasso model, ridge model, logistic regression without regularization, and the forward stepwise selection model - to forecast outcomes accurately. The effectiveness of these models will be assessed using key evaluation metrics, including the Brier score and Area Under the Curve (AUC). The model that demonstrates the best performance in terms of Brier score and AUC will be considered the most suitable for prediction.
 
 
-**Results:**
+**Results:** The analysis of predictive models for tracheostomy or mortality outcomes in individuals with severe bronchopulmonary dysplasia indicates that the best subset logistic regression model outperforms other models. This conclusion is drawn from its Brier score, which stands at a low 0.076, suggesting a high level of accuracy in probability predictions. Additionally, the model's AUC value is 0.918, denoting excellent discriminative ability to differentiate between those who will experience the event and those who will not. These metrics collectively underscore the best subset logistic regression model's superior predictive performance in this clinical context.
 
 
-
-**Conclusions:**
+**Conclusions:** Our findings reveal that the absence of respiratory support or supplemental oxygen, as well as the fraction of inspired oxygen at 36 weeks, significantly increase the probability of tracheostomy or mortality occurring. These two factors are critical indicators; they could provide valuable guidance for patients and healthcare professionals in determining the necessity of tracheostomy or additional medical interventions for those with severe bronchopulmonary dysplasia. The importance of these indicators cannot be overstated, as they offer insights into the patient's condition that could be pivotal in clinical decision-making processes.
 
 ## Dataset
 
@@ -29,8 +28,8 @@ The BPD Collaborative Registry, a multi-center cooperation of multidisciplinary 
 
 |              | Ridge regression model | Lasso regression model | Best subset model | Logistic regression model|
 |:-------------|:----------------------:|-----------------------:|------------------:|-------------------------:|
-|     AUC      |          0.907         |          0.909         |       0.918       |          0.899           |
-|  Brier Score |          0.761         |          0.770         |       0.776       |          0.773           |
+|     AUC      |          0.861         |          0.863         |       0.918       |          0.857           |
+|  Brier Score |          0.080         |          0.072         |       0.076       |          0.071           |
 |  Sensitivity |          0.035         |          0.459         |       0.400       |          0.518           |
 |  Specificity |          1.000         |          0.969         |       0.968       |          0.969           |
 |   Accuracy   |          0.875         |          0.903         |       0.894       |          0.911           | 
